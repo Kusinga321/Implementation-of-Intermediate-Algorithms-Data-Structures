@@ -1,17 +1,16 @@
 #include <bits/stdc++.h>
 
 using namespace std;
-
 /**
- * StanID reprezentuje unikalny hash stanu układu szklanek.
- * Wykorzystujemy system pozycyjny o zmiennej podstawie, gdzie 
- * każda szklanka to kolejna cyfra liczby.
+ * StanID represents a unique hash of the glasses' state arrangement.
+ * We use a mixed-radix positional system, where 
+ * each glass represents a subsequent digit of the number.
  */
 typedef unsigned long long StanID;
 
 /**
- * Oblicza mnożniki dla systemu pozycyjnego.
- * mnozniki[i] pozwala na bezpośredni dostęp do i-tej szklanki w hashu StanID.
+ * Calculates multipliers for the positional system.
+ * multipliers[i] allows direct access to the i-th glass in the StanID hash.
  */
 vector<StanID> obliczMnozniki(int n, const vector<int>& pojemnosc) {
     vector<StanID> mnozniki(n);
@@ -24,7 +23,7 @@ vector<StanID> obliczMnozniki(int n, const vector<int>& pojemnosc) {
 }
 
 /**
- * Konwertuje wektor stanów na unikalny identyfikator numeryczny (bijekcja).
+ * Converts a state vector into a unique numerical identifier (bijection).
  */
 StanID wektorNaID(int n, const vector<int>& stan, const vector<StanID>& mnozniki) {
     StanID id = 0;
@@ -34,8 +33,8 @@ StanID wektorNaID(int n, const vector<int>& stan, const vector<StanID>& mnozniki
 }
 
 /**
- * Dekoduje StanID z powrotem do reprezentacji wektorowej.
- * Wykorzystuje surowe wskaźniki dla optymalizacji wydajności wewnątrz pętli BFS.
+ * Decodes StanID back into a vector representation.
+ * Uses raw pointers for performance optimization inside the BFS loop.
  */
 inline void idNaWektor(StanID id, int n, const vector<int>& pojemnosc, vector<int>& wynik) {
     const int* pPoj = pojemnosc.data();
@@ -48,8 +47,8 @@ inline void idNaWektor(StanID id, int n, const vector<int>& pojemnosc, vector<in
 }
 
 /**
- * Implementacja BFS oparta na wektorze (O(1) dostęp do stanu).
- * Metoda preferowana ze względu na szybkość, wymagająca ciągłego bloku pamięci.
+ * BFS implementation based on a vector (O(1) state access).
+ * Preferred method due to speed, requiring a contiguous memory block.
  */
 int bfs_vector(int n, const vector<int>& pojemnosc, StanID startID, StanID celID, const vector<StanID>& mnozniki, StanID maksStanow) {
     vector<int> dystans; 
@@ -75,7 +74,7 @@ int bfs_vector(int n, const vector<int>& pojemnosc, StanID startID, StanID celID
         for (int i = 0; i < n; ++i) {
             int woda_i = wartosc[i];
 
-            // Akcja: Napełnianie szklanki i
+            // Action: Filling glass i
             if (woda_i < pojemnosc[i]) {
                 StanID nastepneID = obecneID + (StanID)(pojemnosc[i] - woda_i) * mnozniki[i];
                 if (dystans[nastepneID] == -1) {
@@ -85,7 +84,7 @@ int bfs_vector(int n, const vector<int>& pojemnosc, StanID startID, StanID celID
                 }
             }
 
-            // Akcja: Opróżnianie szklanki i
+            // Action: Emptying glass i
             if (woda_i > 0) {
                 StanID nastepneID = obecneID - (StanID)woda_i * mnozniki[i];
                 if (dystans[nastepneID] == -1) {
@@ -95,7 +94,7 @@ int bfs_vector(int n, const vector<int>& pojemnosc, StanID startID, StanID celID
                 }
             }
 
-            // Akcja: Przelewanie ze szklanki i do szklanki j
+            // Action: Pouring from glass i to glass j
             if (woda_i > 0) {
                 for (int j = 0; j < n; ++j) {
                     if (i == j) continue;
@@ -120,8 +119,8 @@ int bfs_vector(int n, const vector<int>& pojemnosc, StanID startID, StanID celID
 }
 
 /**
- * Implementacja BFS oparta na mapie haszującej.
- * Używana jako fallback, gdy przestrzeń stanów jest zbyt duża lub brakuje pamięci.
+ * BFS implementation based on a hash map.
+ * Used as a fallback when the state space is too large or memory is insufficient.
  */
 int bfs_map(int n, const vector<int>& pojemnosc, StanID startID, StanID celID, const vector<StanID>& mnozniki) {
     unordered_map<StanID, int> dystans;
@@ -186,7 +185,7 @@ int bfs_map(int n, const vector<int>& pojemnosc, StanID startID, StanID celID, c
 }
 
 /**
- * Narzędzia matematyczne: Największy Wspólny Dzielnik i optymalizacja stanów.
+ * Mathematical tools: Greatest Common Divisor and state optimization.
  */
 int gcd(int a, int b) {
     if (a * b == 0) return max(a, b);
@@ -201,7 +200,7 @@ int global_gcd(const vector<int> &x) {
 }
 
 /**
- * Sprawdza, czy cel jest osiągalny matematycznie (warunek konieczny NWD).
+ * Checks if the goal is mathematically reachable (necessary GCD condition).
  */
 bool gcd_optimization(const vector<int> &x, const vector<int> &y) {
     int common = global_gcd(x);
@@ -210,7 +209,7 @@ bool gcd_optimization(const vector<int> &x, const vector<int> &y) {
 }
 
 /**
- * Optymalizacja dla przypadków, gdzie każdy cel jest albo 0, albo pełną szklanką.
+ * Optimization for cases where every goal state is either 0 or a full glass.
  */
 int triv_case_optimization(const int &n, const vector<int> &x, const vector<int> &y) {
     for (int i = 0; i < n; i++) 
@@ -222,7 +221,7 @@ int triv_case_optimization(const int &n, const vector<int> &x, const vector<int>
 }
 
 /**
- * Główna logika sterująca wyborem algorytmu BFS w zależności od dostępnych zasobów.
+ * Main logic controlling the choice of BFS algorithm depending on available resources.
  */
 int solve(const int &n, const vector<int> &x, const vector<int> &y) {
     if (!gcd_optimization(x, y)) return -1;
@@ -235,9 +234,9 @@ int solve(const int &n, const vector<int> &x, const vector<int> &y) {
 
     if (startID == celID) return 0;
 
-    // Obliczanie teoretycznej przestrzeni stanów dla alokacji wektora
+    // Calculating theoretical state space for vector allocation
     StanID maksStanow = mnozniki.back() * (x.back() + 1);
-    const StanID SAFE_LIMIT = 60000000; // Próg bezpiecznej alokacji (~240MB)
+    const StanID SAFE_LIMIT = 60000000; // Safe allocation threshold (~240MB)
 
     if (maksStanow > SAFE_LIMIT) {
         return bfs_map(n, x, startID, celID, mnozniki);

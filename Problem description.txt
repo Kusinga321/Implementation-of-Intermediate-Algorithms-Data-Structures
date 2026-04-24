@@ -1,0 +1,92 @@
+Recursive Stacks
+
+The task is to implement a dynamically loaded library in C that handles recursive stacks (hereinafter referred to as "stacks"). The elements of a stack are either integers within the range represented by the uint64_t type or other stacks. A stack is identified by a reference to a structure representing it. In C, a reference is implemented using a pointer and a reference counter for that pointer. Immediately after a stack is created, the reference counter has a value of one. A stack can be placed on multiple stacks. Placing a stack on another stack does not copy it; it only places a reference to the stack. Changes to the stack's content are visible everywhere the reference to that stack is stored. Every time a stack is pushed onto another, the reference counter of the pushed stack increases by one. Every time a stack is popped from another, the reference counter of the popped stack decreases by one. Deleting a stack consists of decreasing the reference counter by one. A stack is removed from memory when the reference counter reaches zero. The structure of stacks may form cycles.
+
+Library Interface
+The library interface is located in the rstack.h file attached to the task description. Additional details of the library's operation should be inferred from the usage examples provided below.
+
+Function to create a new empty stack:
+rstack_t* rstack_new();
+Result:
+- Pointer to the structure representing the stack;
+- nullptr – if a memory allocation error occurred; the function then sets errno to ENOMEM.
+
+Function to delete a stack:
+void rstack_delete(rstack_t *rs);
+Parameter:
+- rs – pointer to the structure representing the stack to be deleted.
+If rs is nullptr, the function does nothing. After deleting the stack, the rs pointer should not be used.
+
+Function to push a value onto the stack:
+int rstack_push_value(rstack_t *rs, uint64_t value);
+Parameters:
+- rs – pointer to the structure representing the stack;
+- value – the number to be pushed onto the stack.
+Result:
+- 0 – if the operation was successful;
+- -1 – if the rs pointer is nullptr or a memory allocation error occurred; the function then sets errno to EINVAL or ENOMEM respectively.
+
+Function to push a stack onto another stack:
+int rstack_push_rstack(rstack_t *rs1, rstack_t *rs2);
+Parameters:
+- rs1 – pointer to the structure representing the stack onto which another stack is pushed;
+- rs2 – pointer to the structure representing the stack that is being pushed.
+Result:
+- 0 – if the operation was successful;
+- -1 – if the rs1 or rs2 pointer is nullptr or a memory allocation error occurred; the function then sets errno to EINVAL or ENOMEM respectively.
+
+Function to non-recursively pop the top of the stack:
+void rstack_pop(rstack_t *rs);
+Parameters:
+- rs – pointer to the structure representing the stack.
+If rs is nullptr or the stack is empty, the function does nothing.
+
+Function to recursively check if the stack contains a number:
+bool rstack_empty(rstack_t *rs);
+Parameters:
+- rs – pointer to the structure representing the stack.
+Result:
+- true – if the rs pointer is nullptr or the stack does not contain a number;
+- false – if the stack contains a number.
+
+Function to recursively find the number closest to the top of the stack:
+result_t rstack_front(rstack_t *rs);
+where:
+typedef struct {
+  bool     flag;  // Indicates if the value field contains the result.
+  uint64_t value; // Contains the actual result.
+} result_t;
+Parameters:
+- rs – pointer to the structure representing the stack.
+Result:
+- flag == true means the value field contains the found number;
+- flag == false means the rs pointer is nullptr, the stack is empty, or no such number exists.
+
+Function to create a new stack onto which numbers from a file are pushed sequentially:
+rstack_t* rstack_read(char const *path);
+Parameters:
+- path – filename/path to the file.
+Result:
+- Pointer to the structure representing the stack;
+- nullptr – if the path pointer is nullptr or an error occurred; the function then sets errno accordingly (selecting appropriate errno values is part of the task).
+Numbers in the file are given in base 10 and separated by whitespace. There can be multiple whitespaces between numbers. The function strictly validates the file content.
+
+Function to write numbers stored in the stack to a file:
+int rstack_write(char const *path, rstack_t *rs);
+Parameters:
+- path – filename/path to the file;
+- rs – pointer to the structure representing the stack.
+Result:
+- 0 – if the operation was successful;
+- -1 – if the path or rs pointer is nullptr or an error occurred; the function then sets errno accordingly.
+Each number is written in a separate line in base 10 without leading zeros. Each line ends with a newline character. If a cycle is detected during writing, the process is aborted.
+
+Functional and Formal Requirements
+The library should provide a strong exception safety guarantee regarding memory allocation failures (no memory leaks, state remains unchanged).
+The solution should be a ZIP, RAR, 7z, or TGZ archive containing rstack.c, optional *.h/*.c files, and a Makefile.
+The Makefile must contain a librstack.so target and a clean target. It should also include memory_tests.c in the library.
+The code must compile with gcc on Linux using:
+-Wall -Wextra -Wno-implicit-fallthrough -std=gnu23 -fPIC -O2
+Linking must use:
+-shared -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=reallocarray -Wl,--wrap=free -Wl,--wrap=strdup -Wl,--wrap=strndup
+Correctness will be verified using Valgrind. No artificial limits on data size are allowed.

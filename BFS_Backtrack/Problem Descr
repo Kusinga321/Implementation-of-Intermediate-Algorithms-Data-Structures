@@ -1,0 +1,44 @@
+Problem Description
+
+You are given n glasses, numbered from 1 to n, with capacities x1, x2, ..., xn respectively. Initially, all glasses are empty. You can perform the following actions:
+- Fill a chosen glass to its maximum capacity with water from the tap.
+- Empty a chosen glass completely into the sink.
+- Pour water from one glass into another—if the total amount fits, pour all the water; otherwise, pour only enough to fill the target glass to its capacity.
+
+Your goal is to reach a state where each glass contains a specific target amount of water, y1, y2, ..., yn respectively.
+
+Write a program that, given the capacities x1, x2, ..., xn and target amounts y1, y2, ..., yn, determines the minimum number of actions required to achieve the target state. If the state cannot be reached, the output should be -1.
+
+Input Format:
+n
+x1 y1
+x2 y2
+...
+xn yn
+
+Constraints:
+- 0 <= n
+- 0 <= yi <= xi for i = 1, 2, ..., n
+- All input values are integers.
+- n, sum of xi, and sum of yi fit in a 32-bit int.
+- Limits are intentionally underspecified—aim for the most efficient solution.
+
+C++ Compilation Flags:
+-std=c++23
+-pedantic
+-Wall
+-Wextra
+-Wformat-security
+-Wduplicated-cond
+-Wfloat-equal
+-Wshadow
+-Wconversion
+-Wlogical-not-parentheses
+-Wnull-dereference
+-Werror
+-fstack-protector-strong
+-fsanitize=undefined
+-fno-sanitize-recover
+-g
+-fno-omit-frame-pointer
+-O1

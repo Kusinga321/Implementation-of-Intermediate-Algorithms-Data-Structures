@@ -1,0 +1,151 @@
+# Algorithms, Systems & Simulation Projects
+
+A collection of programming projects written by **Paweł Kosek** (Computer Science & Mathematics, University of Warsaw).
+They span five languages – **C, C++, Java, x86-64 Assembly and Python** – and range from low-level memory management to graph search and discrete-event simulation.
+
+Most projects were written as university assignments with strict specifications: aggressive compiler flags (`-Wall -Wextra -Werror -Wconversion`, sanitizers), hidden test suites and Valgrind-checked memory safety. Each folder includes the original problem statement where available.
+
+| Project | Language | Key topics |
+|---|---|---|
+| [Recursive Stacks](#recursive-stacks--c) | C | Reference counting, cycle collection, shared library, exception safety |
+| [Water Glasses Solver](#water-glasses-solver--c) | C++ | BFS over a state space, mixed-radix state encoding, number theory |
+| [Ski Resort Simulation](#ski-resort-simulation--java) | Java | Discrete-event simulation, OOP design, graph algorithms, unit tests |
+| [Discrete Fractals](#discrete-fractals--x86-64-assembly) | x86-64 NASM | Linux syscalls, manual memory management, string rewriting (L-systems) |
+| [Medals Counter](#medals-counter--c) | C++ | Input validation with regex, hashing, O(1) multi-criteria queries |
+| [SANO Research Report](#sano-research-report--tda-of-proteins) | Python / report | Topological Data Analysis, protein embeddings |
+
+---
+
+## Recursive Stacks – C
+
+📁 [`Recursive_Stacks_C/`](Recursive_Stacks_C)
+
+A dynamically loaded C library (`librstack.so`) implementing **recursive stacks**: stacks whose elements are either `uint64_t` values or references to other stacks. A stack can be pushed onto many stacks at once (it is shared, not copied), and the reference graph **may contain cycles**.
+
+**Highlights**
+- **Memory management via reference counting** combined with a **synchronous cycle collector** (trial-deletion algorithm with grey/white/black marking, in the spirit of Bacon & Rajan). When a stack's counter drops, the library detects garbage cycles that pure reference counting would leak and frees them.
+- **Strong exception-safety guarantee** for allocation failures: if `malloc` fails mid-operation, the structure is left unchanged and nothing leaks (verified with fault-injecting `malloc` wrappers and Valgrind).
+- Recursive queries (`rstack_empty`, `rstack_front`) and file I/O (`rstack_read`, `rstack_write`) that stay correct in the presence of cycles.
+- Strict validation of input files (overflow, negative numbers, non-decimal input) with appropriate `errno` values.
+
+**Build**
+```bash
+cd Recursive_Stacks_C
+make            # produces librstack.so
+make clean
+```
+
+The public interface (`rstack.h`) and the allocation-failure test harness (`memory_tests.c/h`) were provided with the assignment; the implementation is in `rstack.c`.
+
+---
+
+## Water Glasses Solver – C++
+
+📁 [`BFS_Backtrack/`](BFS_Backtrack)
+
+Given *n* glasses with capacities *x₁…xₙ*, find the **minimum number of moves** (fill, empty, pour) needed to reach target volumes *y₁…yₙ*, or report `-1` if impossible. The limits were intentionally unspecified, so the goal was the most efficient solution possible.
+
+**Highlights**
+- **Breadth-first search over the state space**, where each state is encoded as a single 64-bit integer using a **mixed-radix positional system** (glass *i* is a digit in base *xᵢ + 1*). Moves are applied as arithmetic on the ID without decoding the full state.
+- **Two BFS back-ends** chosen at runtime: a flat-array version with O(1) state lookup when the state space fits in memory (~240 MB threshold), and a hash-map fallback for larger spaces.
+- **Mathematical pruning before search**:
+  - a GCD criterion rejects unreachable targets immediately (every reachable volume is a multiple of gcd(*x₁…xₙ*));
+  - a closed-form shortcut handles targets where every glass is either empty or full.
+- Compiles cleanly under `-std=c++23 -Wall -Wextra -Wconversion -Wshadow -Werror -fsanitize=undefined`.
+
+**Run**
+```bash
+g++ -std=c++23 -O2 BFS_Backtrack/kod.cpp -o glasses
+printf "2\n3 1\n5 0\n" | ./glasses
+```
+
+---
+
+## Ski Resort Simulation – Java
+
+📁 [`Ski_resorts_Java_OOP/`](Ski_resorts_Java_OOP)
+
+A **discrete-event simulation** of a full day at a ski resort (~3,000 lines of Java). The resort is a directed graph of slopes and ski lifts; skiers arrive, queue for lifts, choose runs and get bored of repeating them.
+
+**Highlights**
+- **Event-driven engine** built on a priority queue of time-stamped events (skier arrival, lift boarding, end of lift ride, end of run), with stable ordering of simultaneous events.
+- **Polymorphic skier strategies** behind a common abstract class:
+  - *local* – picks the most attractive next step, with occasional random choices;
+  - *greedy* – heads for the globally most attractive slope;
+  - *collector* – targets the slopes it has skied least, breaking ties by BFS distance and attractiveness.
+- Slope attractiveness combines difficulty fit, skier preferences and a **boredom model** that decays with repetition.
+- **BFS shortest-path routing** across the resort graph; lifts modelled as capacity-limited FIFO queues.
+- Outputs end-of-day statistics (queue lengths, usage, waiting times) and generates resort **maps as LaTeX/TikZ** files, including a per-skier route history.
+- Custom exception hierarchy for invalid input and file-system errors; JUnit tests for graph search and lift logic.
+
+The `kadra/` package (LaTeX map drawing utilities) was provided by the course staff; the simulation, skier logic, graph model and statistics are my own.
+
+**Run**
+```bash
+cd Ski_resorts_Java_OOP
+javac -d out $(find . -name "*.java" ! -name "*Test.java")
+java -cp out osrodek.Main <output_dir> < input.txt
+```
+
+---
+
+## Discrete Fractals – x86-64 Assembly
+
+📁 [`Discrete_Fractals_NASM/`](Discrete_Fractals_NASM)
+
+A program written in **pure x86-64 NASM, with no C standard library** – it talks to the Linux kernel only through raw system calls. It reads an initial word and a set of rewrite rules (`letter → word`) from standard input and applies them *n* times in parallel, producing the next generation of a discrete fractal (an **L-system**).
+
+**Highlights**
+- **Dynamic memory without `malloc`**: buffers are allocated with `mmap` and grown by doubling with `mremap(MREMAP_MAYMOVE)` – a hand-written equivalent of `std::vector`.
+- **Double buffering**: each iteration expands buffer A into buffer B, then the pointers are swapped.
+- Input of arbitrary size read in chunks with `read` until EOF; rules stored in a 127-entry ASCII lookup table for O(1) substitution.
+- Full validation: overflow-safe argument parsing, legal character ranges, duplicate-rule detection; all memory released with `munmap` and a proper exit code on every path.
+
+**Run**
+```bash
+nasm -f elf64 Discrete_Fractals_NASM/discrete_fractals.asm -o fractals.o
+ld fractals.o -o fractals
+printf "A\nAAB\nBA\n" | ./fractals 4     # ABAABABA
+```
+
+Input format: the first line is the starting word; each following line is a rule written as the letter immediately followed by its replacement.
+
+---
+
+## Medals Counter – C++
+
+📁 [`Medals_counter_Cpp/`](Medals_counter_Cpp)
+
+Processes a stream of medal records (`event`, `medal 1–3`, `year`) and answers queries such as *"how many gold medals?"* or *"how many medals in chess in 2023?"* – with any subset of the three criteria.
+
+**Highlights**
+- Each record is indexed under **all 2³ = 8 combinations of criteria** in an `unordered_map` with a custom tuple hash (boost-style `hash_combine`), so every query is answered in **O(1)**.
+- Strict line validation with `std::regex` (multi-word event names, year ranges without leading zeros); malformed lines are reported as `ERROR <line>` without stopping processing.
+
+**Run**
+```bash
+g++ -std=c++20 -O2 Medals_counter_Cpp/medals.cpp -o medals
+printf "Chess 1 2024\nChess 2 2023\n? Chess\n" | ./medals
+```
+
+---
+
+## SANO Research Report – TDA of Proteins
+
+📁 [`SANO/`](SANO)
+
+Report from my 2026 research internship at the **Sano Centre for Computational Medicine** (Kraków), part of the *Secretome* project on proteins secreted by human gut bacteria.
+
+The project tested whether the **Mapper algorithm** from Topological Data Analysis can map the structure of large protein datasets. Mapper was validated on synthetic shapes and then applied to ~14K proteins using an all-against-all **TM-score** structure-similarity matrix and **ESM-2** language-model embeddings, compared against Foldseek, MMseqs2 and UMAP + HDBSCAN baselines. The report explains why the resulting graphs were fragmented and proposes concrete next steps for scaling the method to 1.4 million proteins.
+
+---
+
+## Tech summary
+
+- **Languages:** C, C++ (C++20/23), Java, x86-64 Assembly (NASM), Python
+- **Tooling:** GCC, Make, NASM/ld, javac, JUnit, Valgrind, UBSan
+- **Concepts:** graph search (BFS), state-space encoding, reference counting & garbage collection, memory safety, discrete-event simulation, object-oriented design, Linux system calls
+
+## Contact
+
+[github.com/Kusinga321](https://github.com/Kusinga321) · [LinkedIn](https://www.linkedin.com/in/pawe%C5%82-kosek-4931b5325/) · pawelkosek.p@gmail.com
